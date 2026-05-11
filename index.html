@@ -198,6 +198,7 @@ pre{padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;l
 <div id="app"></div>
 <div id="toast-root"></div>
 <div id="print-area"></div>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
 /* ═══ DATA ═══ */
 const CATS=[{id:'c1',n:'Literatura',c:'#1e4fa8',i:'📖'},{id:'c2',n:'Ciencias',c:'#2a6b4a',i:'🔬'},{id:'c3',n:'Historia',c:'#c97d2e',i:'🌍'},{id:'c4',n:'Cuentos',c:'#9b2525',i:'🧚'},{id:'c5',n:'Fantasía',c:'#5a3090',i:'🐉'},{id:'c7',n:'Ciencia Ficción',c:'#0f6090',i:'🚀'},{id:'c8',n:'Biografías',c:'#6b4520',i:'🎭'},{id:'c9',n:'Cómics',c:'#e0730f',i:'💥'}];
@@ -301,7 +302,7 @@ const AUDIT=[
 /* ═══ STATE ═══ */
 let S={loggedIn:false,cu:null,view:'dashboard',modal:null,mdata:{},
   loans:LOANS.map(l=>({...l})),books:BOOKS.map(b=>({...b})),notifs:NOTIFS.map(n=>({...n})),
-  lf:'all',bf:'all',bq:'',bCls:'all',selBook:null,selRole:'admin',
+  lf:'all',bf:'all',bq:'',bCls:'all',uq:'',uCls:'all',uRole:'all',selBook:null,selRole:'admin',
   catalogView:'list',carnetUser:null,selectedPictos:[],
   pictoEditCode:null,pictoTab:'classes',pictoSearch:'',pictoResults:[],pictoSearching:false,
   importPreview:null,importError:null,
@@ -363,7 +364,7 @@ let S={loggedIn:false,cu:null,view:'dashboard',modal:null,mdata:{},
       {code:'94',name:'Historia de Europa'}]}
   ],
   cduEditId:null,cduEditVal:'',cduAddParent:null,cduAddVal:'',cduAddName:'',selectedCarnets:[],selectedTejuelos:[],tejQ:'',
-  scanActive:false,scanResult:null,auditFilter:'all',notifFilter:'all',
+  scanActive:false,scanResult:null,isbnLoading:false,isbnExternal:null,auditFilter:'all',notifFilter:'all',
   emailSel:'e1',apiOpen:null,settingsTab:'policies',newStars:0,toast:null,
   userBadges:{u4:['g1','g2','g3','g4'],u5:['g1','g2','g3','g4'],u8:['g1','g3']},
   gXP:[
@@ -957,12 +958,9 @@ function vCatalog(){
     });
   }
   const isGrid=S.catalogView==='grid';
-  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:9px">
+  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:9px">
     <div style="display:flex;gap:5px;flex-wrap:wrap"><span class="chip ${S.bf==='all'?'active':''}" onclick="Object.assign(S,{bf:'all'});render()">📚 Todos</span><span class="chip ${S.bf==='av'?'active':''}" onclick="Object.assign(S,{bf:'av'});render()">✅ Disponibles</span>${CATS.map(c=>`<span class="chip ${S.bf===c.id?'active':''}" onclick="Object.assign(S,{bf:'${c.id}'});render()">${c.i} ${c.n}</span>`).join('')}</div>
-    <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
-      <select style="padding:7px 10px;border:1px solid ${S.bCls!=='all'?'var(--amber)':'var(--border)'};border-radius:8px;font-size:11px;font-family:var(--sans);background:${S.bCls!=='all'?'var(--amber-p)':'var(--cream)'};color:var(--navy);font-weight:${S.bCls!=='all'?'700':'400'};cursor:pointer" onchange="Object.assign(S,{bCls:this.value});render()">
-        ${AGE_GROUPS.map(g=>`<option value="${g.id}" ${S.bCls===g.id?'selected':''}>${g.id==='all'?'📅 Todos los cursos':g.label}</option>`).join('')}
-      </select>
+    <div style="display:flex;gap:7px;align-items:center">
       <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
         <button style="padding:7px 10px;background:${isGrid?'var(--navy)':'var(--cream)'};color:${isGrid?'#fff':'var(--text-m)'};border:none;cursor:pointer;font-size:13px;transition:all .13s" onclick="Object.assign(S,{catalogView:'grid'});render()" title="Vista cuadrícula">⊞</button>
         <button style="padding:7px 10px;background:${!isGrid?'var(--navy)':'var(--cream)'};color:${!isGrid?'#fff':'var(--text-m)'};border:none;cursor:pointer;font-size:13px;transition:all .13s" onclick="Object.assign(S,{catalogView:'list'});render()" title="Vista lista">☰</button>
@@ -971,7 +969,6 @@ function vCatalog(){
       ${S.cu.role==='admin'?`<button class="btn btn-ghost btn-sm" onclick="Object.assign(S,{modal:'tejuelosPrint'});render()">🏷️ Tejuelos</button>`:''}
     </div>
   </div>
-  <div style="font-size:11px;color:var(--text-l);margin-bottom:12px">${books.length} libro${books.length!==1?'s':''} encontrado${books.length!==1?'s':''}</div>
   ${isGrid
     ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:13px">
     ${books.length?books.map(b=>`<div class="book-card"><div class="book-cover" style="background:${gc(b.ca)?.c}14" onclick="Object.assign(S,{selBook:'${b.id}'});render()">${b.cv}</div><div class="book-info"><div class="book-title" onclick="Object.assign(S,{selBook:'${b.id}'});render()">${b.ti}</div><div class="book-author">${b.au[0]}</div><div style="margin-top:5px">${avBadge(b.av)}</div></div><div class="book-actions">
@@ -1095,11 +1092,25 @@ function vMyLoans(){
 
 /* ═══ USERS ═══ */
 function vUsers(){
-  const stud=USERS.filter(u=>u.role==='student'),staff=USERS.filter(u=>u.role!=='student');
+  // Derive unique classes from students
+  const allClasses=[...new Set(USERS.filter(u=>u.role==='student'&&u.cls).map(u=>u.cls))].sort();
+
+  // Filter students
+  let stud=USERS.filter(u=>u.role==='student');
+  if(S.uCls!=='all') stud=stud.filter(u=>u.cls===S.uCls);
+  if(S.uq) stud=stud.filter(u=>u.nm.toLowerCase().includes(S.uq.toLowerCase())||u.email.toLowerCase().includes(S.uq.toLowerCase()));
+
+  // Filter staff
+  let staff=USERS.filter(u=>u.role!=='student');
+  if(S.uRole!=='all') staff=staff.filter(u=>u.role===S.uRole);
+  if(S.uq) staff=staff.filter(u=>u.nm.toLowerCase().includes(S.uq.toLowerCase())||u.email.toLowerCase().includes(S.uq.toLowerCase()));
+
   const sel=S.selectedCarnets;
   const allSel=stud.length>0&&stud.every(u=>sel.includes(u.id));
-  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-    <div class="grid g3" style="gap:10px">${[['Alumnos',stud.length,'var(--green)'],['Docentes',staff.filter(u=>u.role==='teacher').length,'var(--blue)'],['Admins',staff.filter(u=>u.role==='admin').length,'var(--amber)']].map(([l,v,c])=>`<div class="stat-card" style="border-left:3px solid ${c}"><div class="stat-label">${l}</div><div class="stat-value" style="font-size:24px;color:${c}">${v}</div></div>`).join('')}</div>
+  const activeFilters=(S.uCls!=='all'||S.uRole!=='all'||S.uq);
+
+  return `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+    <div class="grid g3" style="gap:10px">${[['Alumnos',USERS.filter(u=>u.role==='student').length,'var(--green)'],['Docentes',USERS.filter(u=>u.role==='teacher').length,'var(--blue)'],['Admins',USERS.filter(u=>u.role==='admin').length,'var(--amber)']].map(([l,v,c])=>`<div class="stat-card" style="border-left:3px solid ${c}"><div class="stat-label">${l}</div><div class="stat-value" style="font-size:24px;color:${c}">${v}</div></div>`).join('')}</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       ${sel.length>0?`<button class="btn btn-amber btn-sm" onclick="printSelectedCarnets()">🖨️ Carnets selec. (${sel.length})</button>`:''}
       <button class="btn btn-ghost btn-sm" onclick="printAllCarnets()">🖨️ Todos los carnets</button>
@@ -1107,15 +1118,37 @@ function vUsers(){
       <button class="btn btn-amber" onclick="Object.assign(S,{modal:'addUser'});render()">+ Nuevo</button>
     </div>
   </div>
-  <div class="card" style="margin-bottom:14px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <h3 style="font-family:var(--serif);font-size:17px;font-weight:700;color:var(--navy)">🧑‍🎓 Alumnos</h3>
-      <label style="font-size:11px;color:var(--text-m);display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" ${allSel?'checked':''} onchange="S.selectedCarnets=this.checked?USERS.filter(u=>u.role==='student').map(u=>u.id):[];render()"> Selec. todos para carnet</label>
-    </div>
-    <div class="table-wrap"><table><thead><tr><th style="width:30px"></th><th>Nombre</th><th>Clase</th><th>Leídos</th><th>XP</th><th>Nivel</th><th>Estado</th><th>Carnet</th></tr></thead>
-    <tbody>${stud.map(u=>{const od=S.loans.filter(l=>l.ui===u.id&&l.st==='overdue').length,li=lvl(u.pts),ck=sel.includes(u.id);return`<tr style="${ck?'background:var(--amber-p)':''}"><td style="padding:8px 6px 8px 13px"><input type="checkbox" ${ck?'checked':''} onchange="S.selectedCarnets=S.selectedCarnets.includes('${u.id}')?S.selectedCarnets.filter(x=>x!=='${u.id}'):[...S.selectedCarnets,'${u.id}'];render()"></td><td><div style="display:flex;align-items:center;gap:8px">${mkAv(u,26)}<div><div style="font-size:12px;font-weight:600">${u.nm}</div><div style="font-size:11px;color:var(--text-l)">${u.email}</div></div></div></td><td><span class="badge badge-navy">${u.cls}</span></td><td style="font-size:13px;font-weight:700">${u.rd}</td><td style="font-size:13px;font-weight:700;color:var(--amber)">${u.pts}</td><td><span style="font-size:12px">${li.i}</span> <span style="font-size:11px">${li.l}</span></td><td><span class="badge ${od?'badge-red':'badge-green'}">${od?`${od} ret.`:'Activo'}</span></td><td><button class="btn btn-ghost btn-xs" onclick="Object.assign(S,{modal:'carnet',carnetUser:'${u.id}'});render()">🪪</button></td></tr>`;}).join('')}</tbody></table></div>
+
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:var(--cream-d);border:1px solid var(--border);border-radius:10px;margin-bottom:14px">
+    <input style="padding:7px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:var(--sans);background:var(--cream);flex:1;min-width:160px" placeholder="🔍 Buscar por nombre o email…" value="${S.uq}" oninput="Object.assign(S,{uq:this.value});render()">
+    <select style="padding:7px 10px;border:1px solid ${S.uCls!=='all'?'var(--amber)':'var(--border)'};border-radius:8px;font-size:11px;font-family:var(--sans);background:${S.uCls!=='all'?'var(--amber-p)':'var(--cream)'};color:var(--navy);font-weight:${S.uCls!=='all'?'700':'400'};cursor:pointer" onchange="Object.assign(S,{uCls:this.value});render()">
+      <option value="all">📅 Todos los cursos</option>
+      ${allClasses.map(c=>`<option value="${c}" ${S.uCls===c?'selected':''}>${c}</option>`).join('')}
+    </select>
+    <select style="padding:7px 10px;border:1px solid ${S.uRole!=='all'?'var(--amber)':'var(--border)'};border-radius:8px;font-size:11px;font-family:var(--sans);background:${S.uRole!=='all'?'var(--amber-p)':'var(--cream)'};color:var(--navy);font-weight:${S.uRole!=='all'?'700':'400'};cursor:pointer" onchange="Object.assign(S,{uRole:this.value});render()">
+      <option value="all">👥 Todos los roles</option>
+      <option value="student" ${S.uRole==='student'?'selected':''}>🧑‍🎓 Alumnos</option>
+      <option value="teacher" ${S.uRole==='teacher'?'selected':''}>🎓 Docentes</option>
+      <option value="admin" ${S.uRole==='admin'?'selected':''}>👑 Admins</option>
+    </select>
+    ${activeFilters?`<button class="btn btn-ghost btn-xs" onclick="Object.assign(S,{uq:'',uCls:'all',uRole:'all'});render()">✕ Limpiar filtros</button>`:''}
+    <span style="font-size:11px;color:var(--text-l);margin-left:auto">${stud.length+staff.length} resultado${stud.length+staff.length!==1?'s':''}</span>
   </div>
-  <div class="card"><h3 style="font-family:var(--serif);font-size:17px;font-weight:700;color:var(--navy);margin-bottom:12px">👩‍🏫 Equipo Docente</h3><div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Rol</th><th>Clase</th><th>Email</th><th>Carnet</th></tr></thead><tbody>${staff.map(u=>`<tr><td><div style="display:flex;align-items:center;gap:8px">${mkAv(u,24)}<span style="font-size:12px;font-weight:600">${u.nm}</span></div></td><td><span class="badge ${u.role==='admin'?'badge-amber':'badge-blue'}">${u.role}</span></td><td>${u.cls||'—'}</td><td style="font-size:11px;color:var(--text-l)">${u.email}</td><td><button class="btn btn-ghost btn-xs" onclick="Object.assign(S,{modal:'carnet',carnetUser:'${u.id}'});render()">🪪</button></td></tr>`).join('')}</tbody></table></div></div>`;
+
+  ${(S.uRole==='all'||S.uRole==='student')?`<div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h3 style="font-family:var(--serif);font-size:17px;font-weight:700;color:var(--navy)">🧑‍🎓 Alumnos <span style="font-size:13px;font-weight:400;color:var(--text-l)">(${stud.length})</span></h3>
+      <label style="font-size:11px;color:var(--text-m);display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" ${allSel?'checked':''} onchange="S.selectedCarnets=this.checked?stud.map(u=>u.id):[];render()"> Selec. todos para carnet</label>
+    </div>
+    ${stud.length?`<div class="table-wrap"><table><thead><tr><th style="width:30px"></th><th>Nombre</th><th>Curso</th><th>Leídos</th><th>XP</th><th>Nivel</th><th>Estado</th><th>Carnet</th></tr></thead>
+    <tbody>${stud.map(u=>{const od=S.loans.filter(l=>l.ui===u.id&&l.st==='overdue').length,li=lvl(u.pts),ck=sel.includes(u.id);return`<tr style="${ck?'background:var(--amber-p)':''}"><td style="padding:8px 6px 8px 13px"><input type="checkbox" ${ck?'checked':''} onchange="S.selectedCarnets=S.selectedCarnets.includes('${u.id}')?S.selectedCarnets.filter(x=>x!=='${u.id}'):[...S.selectedCarnets,'${u.id}'];render()"></td><td><div style="display:flex;align-items:center;gap:8px">${mkAv(u,26)}<div><div style="font-size:12px;font-weight:600">${u.nm}</div><div style="font-size:11px;color:var(--text-l)">${u.email}</div></div></div></td><td><span class="badge badge-navy">${u.cls}</span></td><td style="font-size:13px;font-weight:700">${u.rd}</td><td style="font-size:13px;font-weight:700;color:var(--amber)">${u.pts}</td><td><span style="font-size:12px">${li.i}</span> <span style="font-size:11px">${li.l}</span></td><td><span class="badge ${od?'badge-red':'badge-green'}">${od?`${od} ret.`:'Activo'}</span></td><td><button class="btn btn-ghost btn-xs" onclick="Object.assign(S,{modal:'carnet',carnetUser:'${u.id}'});render()">🪪</button></td></tr>`;}).join('')}</tbody></table></div>`
+    :`<p style="text-align:center;padding:20px;color:var(--text-l);font-size:12px">No hay alumnos con los filtros actuales</p>`}
+  </div>`:''}
+
+  ${(S.uRole==='all'||S.uRole==='teacher'||S.uRole==='admin')?`<div class="card"><h3 style="font-family:var(--serif);font-size:17px;font-weight:700;color:var(--navy);margin-bottom:12px">👩‍🏫 Equipo Docente <span style="font-size:13px;font-weight:400;color:var(--text-l)">(${staff.length})</span></h3>
+    ${staff.length?`<div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Rol</th><th>Clase</th><th>Email</th><th>Carnet</th></tr></thead><tbody>${staff.map(u=>`<tr><td><div style="display:flex;align-items:center;gap:8px">${mkAv(u,24)}<span style="font-size:12px;font-weight:600">${u.nm}</span></div></td><td><span class="badge ${u.role==='admin'?'badge-amber':'badge-blue'}">${u.role}</span></td><td>${u.cls||'—'}</td><td style="font-size:11px;color:var(--text-l)">${u.email}</td><td><button class="btn btn-ghost btn-xs" onclick="Object.assign(S,{modal:'carnet',carnetUser:'${u.id}'});render()">🪪</button></td></tr>`).join('')}</tbody></table></div>`
+    :`<p style="text-align:center;padding:20px;color:var(--text-l);font-size:12px">No hay docentes con los filtros actuales</p>`}
+  </div>`:''}`;
 }
 
 
@@ -1217,47 +1250,126 @@ function vParentPortal(){
 /* ═══ SCANNER ═══ */
 function vScanner(){
   const res=S.scanResult;
+  const ext=S.isbnExternal;
+  const loading=S.isbnLoading;
+
+  // Result panel: local book or external lookup
+  let resultPanel='';
+  if(loading){
+    resultPanel=`<div class="card" style="text-align:center;padding:32px;margin-bottom:14px">
+      <div style="font-size:32px;margin-bottom:10px">🔍</div>
+      <p style="font-size:13px;font-weight:600;color:var(--navy)">Buscando en Open Library y Google Books…</p>
+      <p style="font-size:11px;color:var(--text-l);margin-top:4px">Consultando bases de datos de libros</p>
+    </div>`;
+  } else if(res){
+    // Local book found
+    resultPanel=`<div class="card" style="border-left:4px solid var(--green);margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">✓ LIBRO EN CATÁLOGO</div>
+      <div style="display:flex;gap:14px">
+        <div style="width:90px;height:135px;border-radius:8px;overflow:hidden;flex-shrink:0;background:var(--cream-d);border:1px solid var(--border);display:flex;align-items:center;justify-content:center">
+          <img src="https://covers.openlibrary.org/b/isbn/${res.isbn}-M.jpg" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextSibling.style.display='flex'">
+          <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:44px">${res.cv}</div>
+        </div>
+        <div style="flex:1">
+          <h3 style="font-family:var(--serif);font-size:17px;font-weight:700;color:var(--navy);margin-bottom:3px">${res.ti}</h3>
+          <p style="font-size:12px;color:var(--text-m);margin-bottom:2px">${res.au.join(', ')}</p>
+          <p style="font-family:var(--mono);font-size:11px;color:var(--blue);margin-bottom:8px">${res.isbn}</p>
+          <div style="margin-bottom:10px">${avBadge(res.av)}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${res.av>0?`<button class="btn btn-amber btn-sm" onclick="showToast('✓ Préstamo registrado para &quot;${res.ti}&quot;')">📥 Prestar</button>`:''}
+            <button class="btn btn-green btn-sm" onclick="showToast('✓ Devolución registrada')">↩ Devolver</button>
+            <button class="btn btn-ghost btn-sm" onclick="Object.assign(S,{selBook:'${res.id}',scanResult:null});render()">Ver ficha →</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  } else if(ext){
+    // External book found via API
+    resultPanel=`<div class="card" style="border-left:4px solid var(--amber);margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:1px">📡 ENCONTRADO · ${ext.source}</div>
+        <span style="font-size:10px;color:var(--text-l)">No está en tu catálogo</span>
+      </div>
+      <div style="display:flex;gap:14px;margin-bottom:14px">
+        <div style="width:90px;height:135px;border-radius:8px;overflow:hidden;flex-shrink:0;background:var(--cream-d);border:1px solid var(--border)">
+          <img src="${ext.coverUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.opacity=0.15">
+        </div>
+        <div style="flex:1">
+          <h3 style="font-family:var(--serif);font-size:17px;font-weight:700;color:var(--navy);margin-bottom:3px">${ext.ti}</h3>
+          <p style="font-size:12px;color:var(--text-m);margin-bottom:2px">${ext.au}</p>
+          ${ext.publisher?`<p style="font-size:11px;color:var(--text-l);margin-bottom:6px">${ext.publisher}</p>`:''}
+          <p style="font-family:var(--mono);font-size:11px;color:var(--blue);margin-bottom:0">${ext.isbn}</p>
+        </div>
+      </div>
+      <div style="background:var(--cream-d);border-radius:9px;padding:11px;border:1px solid var(--border)">
+        <div style="font-size:11px;font-weight:700;color:var(--navy);margin-bottom:9px">Datos para añadir al catálogo</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <div class="form-group" style="margin:0"><label class="form-label">Título</label><input class="form-input" id="ext-ti" value="${ext.ti.replace(/"/g,'&quot;')}" style="font-size:11px"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">Autor/es</label><input class="form-input" id="ext-au" value="${ext.au.replace(/"/g,'&quot;')}" style="font-size:11px"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">Año de publicación</label><input class="form-input" id="ext-yr" value="${ext.yr||''}" placeholder="Ej: 2023" type="number" style="font-size:11px"></div>
+          <div class="form-group" style="margin:0"><label class="form-label">Páginas</label><input class="form-input" id="ext-pg" value="${ext.pg||''}" placeholder="—" type="number" style="font-size:11px"></div>
+        </div>
+        <button class="btn btn-amber btn-sm btn-full" onclick="showToast('✓ Libro añadido al catálogo (requiere backend para persistir)')">+ Añadir al catálogo</button>
+      </div>
+    </div>`;
+  } else {
+    resultPanel=`<div class="card" style="text-align:center;padding:36px;background:var(--navy-d);border-color:var(--navy-l);margin-bottom:14px">
+      <div style="font-size:40px;margin-bottom:10px;opacity:.3">📷</div>
+      <p style="color:#5a5450;font-size:12px">Escanea un código de barras o introduce un ISBN para buscar el libro</p>
+    </div>`;
+  }
+
   return `<div class="grid g2">
     <div>
       <div class="card" style="background:var(--navy-d);border-color:var(--navy-l);margin-bottom:14px">
-        <h3 style="font-family:var(--serif);font-size:17px;font-weight:700;color:#fff;margin-bottom:4px">📷 Escáner QR / Código de Barras</h3>
-        <p style="font-size:12px;color:#5a5450;margin-bottom:10px">Usa la cámara del ordenador o del móvil para escanear ISBN y QR de libros.</p>
+        <h3 style="font-family:var(--serif);font-size:17px;font-weight:700;color:#fff;margin-bottom:4px">📷 Escáner de Código de Barras</h3>
+        <p style="font-size:12px;color:#5a5450;margin-bottom:10px">Compatible con todos los navegadores — usa ZXing para detección automática.</p>
         <div id="scan-container" style="position:relative;border-radius:12px;overflow:hidden;background:#000;margin-bottom:12px">
           <video id="scan-video" style="width:100%;display:${S.scanActive?'block':'none'};border-radius:12px" autoplay playsinline muted></video>
-          ${!S.scanActive?`<div class="scan-frame"><div style="position:absolute;inset:0;background-image:linear-gradient(rgba(201,125,46,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(201,125,46,.05) 1px,transparent 1px);background-size:24px 24px"></div><div style="text-align:center"><div class="scan-box"></div><p style="color:rgba(255,255,255,.3);font-size:11px;margin-top:12px">Activa la cámara para comenzar</p></div></div>`:'<div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center"><div style="width:180px;height:180px;border:3px solid var(--amber);border-radius:12px;position:relative"><div style="position:absolute;top:-3px;left:-3px;width:28px;height:28px;border:4px solid var(--amber-l);border-right:none;border-bottom:none;border-radius:9px 0 0 0"></div><div style="position:absolute;bottom:-3px;right:-3px;width:28px;height:28px;border:4px solid var(--amber-l);border-left:none;border-top:none;border-radius:0 0 9px 0"></div><div class="scan-beam"></div></div></div>'}
+          ${!S.scanActive
+            ?`<div class="scan-frame"><div style="position:absolute;inset:0;background-image:linear-gradient(rgba(201,125,46,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(201,125,46,.05) 1px,transparent 1px);background-size:24px 24px"></div><div style="text-align:center"><div class="scan-box"></div><p style="color:rgba(255,255,255,.3);font-size:11px;margin-top:12px">Activa la cámara para comenzar</p></div></div>`
+            :`<div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center"><div style="width:200px;height:120px;border:3px solid var(--amber);border-radius:8px;position:relative"><div style="position:absolute;top:-3px;left:-3px;width:28px;height:28px;border:4px solid var(--amber-l);border-right:none;border-bottom:none;border-radius:9px 0 0 0"></div><div style="position:absolute;bottom:-3px;right:-3px;width:28px;height:28px;border:4px solid var(--amber-l);border-left:none;border-top:none;border-radius:0 0 9px 0"></div><div class="scan-beam"></div></div></div>`
+          }
         </div>
         <div style="display:flex;gap:7px;flex-wrap:wrap">
-          <button class="btn ${S.scanActive?'btn-red':'btn-amber'}" style="flex:1" onclick="toggleScanner()">${S.scanActive?'⏹ Detener cámara':'📷 Cámara del equipo'}</button>
-          <button class="btn btn-blue" style="flex:1" onclick="startMobileCamera()" title="Activa la cámara trasera del móvil si accedes desde él">📱 Cámara móvil</button>
-          <button class="btn btn-ghost btn-sm" onclick="const b=S.books[Math.floor(Math.random()*S.books.length)];stopCamera();Object.assign(S,{scanActive:false,scanResult:b});showToast('📷 ISBN detectado: '+b.isbn);render()">🎯 Demo</button>
+          <button class="btn ${S.scanActive?'btn-red':'btn-amber'}" style="flex:1" onclick="toggleScanner()">${S.scanActive?'⏹ Detener cámara':'📷 Cámara ordenador'}</button>
+          <button class="btn btn-blue" style="flex:1" onclick="startMobileCamera()">📱 Cámara trasera móvil</button>
         </div>
-        <p style="font-size:10px;color:#3a3430;margin-top:8px">💡 En el móvil, usa "Cámara móvil" para activar la cámara trasera con detección automática de códigos de barras (requiere Chrome o Safari 17+).</p>
+        <p style="font-size:10px;color:#3a3430;margin-top:8px">💡 Centra el código de barras dentro del recuadro. Funciona en Chrome, Firefox y Safari.</p>
       </div>
+
       <div class="card" style="margin-bottom:14px">
-        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:9px">🔢 Entrada Manual de ISBN</div>
-        <div style="display:flex;gap:7px"><input class="form-input" id="isbn-in" placeholder="9788478884452" style="flex:1"><button class="btn btn-blue btn-sm" onclick="const v=document.getElementById('isbn-in').value,b=S.books.find(x=>x.isbn===v)||S.books[0];Object.assign(S,{scanResult:b});showToast('🔍 Encontrado: '+b.ti);render()">Buscar</button></div>
-        <p style="font-size:11px;color:var(--text-l);margin-top:7px">También puedes conectar un <strong>lector de código de barras USB</strong>: funciona como un teclado, escribe el ISBN y pulsa Enter automáticamente.</p>
-        <div id="barcode-reader-area" style="margin-top:8px"></div>
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:9px">🔢 Buscar por ISBN</div>
+        <div style="display:flex;gap:7px">
+          <input class="form-input" id="isbn-in" placeholder="9788478884452" style="flex:1;font-family:var(--mono)" onkeydown="if(event.key==='Enter')lookupISBN(this.value)">
+          <button class="btn btn-blue btn-sm" onclick="lookupISBN(document.getElementById('isbn-in').value)">Buscar</button>
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
+          ${['9788498381498','9788478884452','9788420432670'].map(isbn=>`<button class="btn btn-ghost btn-xs" onclick="document.getElementById('isbn-in').value='${isbn}';lookupISBN('${isbn}')" title="Probar ISBN de ejemplo">${isbn.slice(-4)}</button>`).join('')}
+          <span style="font-size:10px;color:var(--text-l);align-self:center">← ejemplos del catálogo</span>
+        </div>
+        <p style="font-size:11px;color:var(--text-l);margin-top:8px">Busca primero en tu catálogo y luego en <strong>Open Library</strong> y <strong>Google Books</strong> automáticamente.</p>
       </div>
-      <div class="card"><div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:9px">📊 Estadísticas del Escáner (Hoy)</div>${[['Libros escaneados','23'],['Préstamos registrados','11'],['Devoluciones','8'],['ISBN sin resultado','1']].map(([l,v])=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 11px;background:var(--cream-d);border-radius:8px;border:1px solid var(--border);margin-bottom:6px"><span style="font-size:12px;color:var(--text-m)">${l}</span><span style="font-family:var(--serif);font-size:18px;font-weight:700;color:var(--navy)">${v}</span></div>`).join('')}</div>
+
+      <div class="card"><div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:9px">🔌 Lector USB (Plug & Play)</div>
+        <p style="font-size:12px;color:var(--text-m);margin-bottom:8px">Conecta un lector de código de barras USB. Funciona como teclado: escanea y pulsa Enter automáticamente.</p>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">${['✓ Sin drivers','✓ Todos los SO','✓ 1-2 seg/libro','✓ ~15–40€'].map(f=>`<span class="badge badge-blue" style="font-size:9px">${f}</span>`).join('')}</div>
+      </div>
     </div>
     <div>
-      ${res?`<div class="card" style="border-left:4px solid var(--amber);margin-bottom:14px"><div style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">✓ LIBRO DETECTADO</div><div style="display:flex;gap:16px"><div style="width:100px;height:150px;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:${gc(res.ca)?.c}14"><img src="https://covers.openlibrary.org/b/isbn/${res.isbn}-M.jpg" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" /><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:48px">${res.cv}</div></div><div style="flex:1"><h3 style="font-family:var(--serif);font-size:19px;font-weight:700;color:var(--navy);margin-bottom:4px">${res.ti}</h3><p style="font-size:12px;color:var(--text-m)">${res.au[0]}</p><p style="font-family:var(--mono);font-size:11px;color:var(--blue);margin:5px 0">${res.isbn}</p><div style="margin-bottom:12px">${avBadge(res.av)}</div><div style="display:flex;gap:7px;flex-wrap:wrap">${res.av>0?`<button class="btn btn-amber btn-sm" onclick="showToast('✓ Préstamo registrado para &quot;${res.ti}&quot;')">📥 Prestar</button>`:''}${`<button class="btn btn-green btn-sm" onclick="showToast('✓ Devolución registrada')">↩ Devolver</button>`}<button class="btn btn-ghost btn-sm" onclick="Object.assign(S,{selBook:'${res.id}',scanResult:null});render()">Ver ficha</button></div></div></div></div>`
-      :`<div class="card" style="text-align:center;padding:36px;background:var(--navy-d);border-color:var(--navy-l);margin-bottom:14px"><div style="font-size:40px;margin-bottom:10px;opacity:.3">📷</div><p style="color:#5a5450;font-size:12px">Activa el escáner o introduce un ISBN para ver el libro aquí</p></div>`}
-      <div class="card" style="margin-bottom:14px;background:var(--green-p);border-color:var(--green)">
+      ${resultPanel}
+      <div class="card" style="background:var(--green-p);border-color:var(--green)">
         <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:7px">📱 Cómo usar desde el móvil</div>
         <ol style="font-size:12px;color:var(--text-m);padding-left:16px;line-height:1.8">
-          <li>Abre BiblioTEC en el navegador del móvil (Chrome o Safari)</li>
-          <li>Ve a Escáner QR/ISBN y pulsa <strong>"Cámara móvil"</strong></li>
-          <li>Acepta el permiso de cámara cuando te lo pida</li>
-          <li>Apunta la cámara trasera al código de barras del libro</li>
-          <li>El ISBN se detecta automáticamente (requiere Chrome Android o Safari 17+)</li>
+          <li>Abre BiblioTEC en Chrome o Safari del móvil</li>
+          <li>Ve a <strong>Escáner QR/ISBN</strong> → pulsa <strong>"Cámara trasera móvil"</strong></li>
+          <li>Acepta el permiso de cámara</li>
+          <li>Centra el código de barras del libro en el recuadro</li>
+          <li>El ISBN se detecta y busca automáticamente</li>
         </ol>
       </div>
-      <div class="card" style="background:var(--blue-p);border-color:var(--blue)"><div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px">🔌 Lector USB de Código de Barras</div><p style="font-size:12px;color:var(--text-m);margin-bottom:8px">Conecta cualquier lector de código de barras USB (HID). Funciona como un teclado: escanea el libro y el ISBN aparece automáticamente en el campo de búsqueda.</p><div style="display:flex;gap:5px;flex-wrap:wrap">${['✓ Plug &amp; Play, sin drivers','✓ Compatible con todos los SO','✓ Velocidad 1-2 seg/libro','✓ Precio ~15–40€'].map(f=>`<span class="badge badge-blue" style="font-size:9px">${f}</span>`).join('')}</div></div>
     </div>
-  </div>
-  `;
+  </div>`;
 }
 
 /* ═══ NOTIFICATIONS ═══ */
@@ -1904,21 +2016,54 @@ function renderModal(){
     var allT=filtered.length>0&&filtered.every(function(b){return sel2.includes(b.id);});
     var items=filtered.map(function(b){
       var s=sel2.includes(b.id);
-      return '<label style="display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:7px;cursor:pointer;border:1px solid '+(s?'var(--amber)':'var(--border)')+';background:'+(s?'var(--amber-p)':'var(--cream)')+'"><input type="checkbox" '+(s?'checked':'')+' onchange="_toggleTej(\''+b.id+'\')"><span>'+b.cv+'</span><span style="font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+b.ti+'</span><span style="font-family:var(--mono);font-size:9px;color:var(--text-l)">'+b.sh+'</span></label>';
+      var col=getCDUColor(b.sh);
+      return '<label style="display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:7px;cursor:pointer;border:1px solid '+(s?'var(--amber)':'var(--border)')+';background:'+(s?'var(--amber-p)':'var(--cream)')+'">'
+        +'<input type="checkbox" '+(s?'checked':'')+' onchange="_toggleTej(\''+b.id+'\');render()">'
+        +'<span style="width:10px;height:10px;border-radius:50%;background:'+col+';flex-shrink:0"></span>'
+        +'<span>'+b.cv+'</span>'
+        +'<span style="font-size:11px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+b.ti+'</span>'
+        +'<span style="font-family:var(--mono);font-size:9px;color:var(--text-l);flex-shrink:0">'+b.sh+'</span>'
+      +'</label>';
     }).join('')||(q?'<p style="text-align:center;color:var(--text-l);font-size:12px;padding:18px">Sin resultados</p>':'');
-    var h='<div class="modal" style="max-width:660px">'
-      +'<div class="modal-header"><h3>\uD83C\uDFF7\uFE0F Imprimir Tejuelos</h3><button class="modal-close" onclick="Object.assign(S,{modal:null,tejQ:\'\'});render()">x</button></div>'
-      +'<div class="modal-body">'
-      +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">'
-      +'<input class="form-input" placeholder="\uD83D\uDD0D Buscar t\u00edtulo, autor o signatura..." value="'+(S.tejQ||'')+'" id="tej-q" oninput="Object.assign(S,{tejQ:this.value});render()" style="flex:1">'
-      +'<label style="font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap"><input type="checkbox" '+(allT?'checked':'')+' onchange="_toggleAllTej(this.checked)"> Selec. todos</label>'
+
+    // Live preview panel
+    var previewBooks=sel2.map(function(id){return S.books.find(function(b){return b.id===id;});}).filter(Boolean);
+    var previewHTML=previewBooks.length
+      ?'<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start">'
+        +previewBooks.map(function(b){
+          return '<div style="transform:scale(0.52);transform-origin:top left;display:inline-block;margin-bottom:-58px;margin-right:-36px">'
+            +buildTejueloHTML(b)
+            +'</div>';
+        }).join('')
+        +'</div>'
+      :'<div style="text-align:center;padding:32px;color:var(--text-l)"><div style="font-size:32px;margin-bottom:8px">🏷️</div><p style="font-size:12px">Selecciona libros para previsualizar los tejuelos</p></div>';
+
+    var h='<div class="modal" style="max-width:820px">'
+      +'<div class="modal-header"><h3>🏷️ Imprimir Tejuelos</h3><button class="modal-close" onclick="Object.assign(S,{modal:null,tejQ:\'\'});render()">✕</button></div>'
+      +'<div class="modal-body" style="display:grid;grid-template-columns:280px 1fr;gap:16px;max-height:500px">'
+        // Left — selector
+        +'<div style="display:flex;flex-direction:column;gap:8px">'
+          +'<div style="display:flex;gap:6px;align-items:center">'
+            +'<input class="form-input" placeholder="🔍 Buscar…" value="'+(S.tejQ||'')+'" id="tej-q" oninput="Object.assign(S,{tejQ:this.value});render()" style="flex:1;font-size:11px">'
+            +'<label style="font-size:10px;display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap"><input type="checkbox" '+(allT?'checked':'')+' onchange="_toggleAllTej(this.checked);render()"> Todos</label>'
+          +'</div>'
+          +'<div style="font-size:10px;color:var(--text-l)">'+(sel2.length)+' seleccionado'+(sel2.length!==1?'s':'')+' / '+filtered.length+' visibles</div>'
+          +'<div style="display:flex;flex-direction:column;gap:5px;overflow-y:auto;flex:1;padding-right:2px">'
+            +items
+          +'</div>'
+        +'</div>'
+        // Right — live preview
+        +'<div style="overflow-y:auto;border-left:1px solid var(--border);padding-left:16px">'
+          +'<div style="font-size:11px;font-weight:700;color:var(--text-m);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Previsualización</div>'
+          +'<div style="overflow:hidden">'+previewHTML+'</div>'
+          +(previewBooks.length?'<p style="font-size:10px;color:var(--text-l);margin-top:16px">Los colores corresponden al código CDU de cada libro. Se imprimirán 4 por fila en A4.</p>':'')
+        +'</div>'
       +'</div>'
-      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:7px;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;padding:10px">'
-      +items
-      +'</div></div>'
-      +'<div class="modal-footer"><button class="btn btn-ghost" onclick="Object.assign(S,{modal:null,tejQ:\'\'});render()">Cancelar</button>'
-      +'<button class="btn btn-amber" onclick="printTejuelosSelected(S.selectedTejuelos);Object.assign(S,{modal:null,tejQ:\'\'});render()">Imprimir ('+sel2.length+' tejuelo'+(sel2.length!==1?'s':'')+')</button>'
-      +'</div></div>';
+      +'<div class="modal-footer">'
+        +'<button class="btn btn-ghost" onclick="Object.assign(S,{modal:null,tejQ:\'\'});render()">Cancelar</button>'
+        +'<button class="btn btn-amber" '+(sel2.length===0?'disabled style="opacity:.5;cursor:not-allowed"':'')+' onclick="printTejuelosSelected(S.selectedTejuelos);Object.assign(S,{modal:null,tejQ:\'\'});render()">🖨️ Imprimir ('+sel2.length+' tejuelo'+(sel2.length!==1?'s':'')+')</button>'
+      +'</div>'
+    +'</div>';
     return wrap(h);
   }
 
@@ -2306,7 +2451,7 @@ const CDU_COLORS={
   '8':{c:'#1565C0',n:'Literatura'},
   '9':{c:'#827717',n:'Geograf\u00eda e Historia'}
 };
-function getCDUColor(code){var f=String(code||"").trim()[0];return(CDU_COLORS[f]||{c:"#999"}).c;}
+function getCDUColor(code){var f=String(code||"").trim()[0];var cls=S.cduTree.find(function(c){return c.code===f;});return(cls&&cls.color)||(CDU_COLORS[f]||{c:"#999"}).c;}
 function getCDUName(code){var f=String(code||"").trim()[0];return(CDU_COLORS[f]||{n:""}).n;}
 function getCDUEmoji(code){var f=String(code||"").trim()[0];var cls=S.cduTree.find(function(c){return c.code===f;});return(cls&&cls.emoji)||(CDU_EMOJIS[f]||'📚');}
 function getCDUPictoId(code){
@@ -2379,47 +2524,86 @@ function fbCalcCDU(){
 /* ═══ BIND EVENTS ═══ */
 function bindEv(){
   const inp=document.getElementById('isbn-in');
-  if(inp&&!inp._bound){inp._bound=true;inp.addEventListener('keydown',function(e){if(e.key==='Enter'){const v=this.value,b=S.books.find(x=>x.isbn===v)||S.books[0];Object.assign(S,{scanResult:b});showToast('🔍 Encontrado: '+b.ti);render();}});}
+  if(inp&&!inp._bound){inp._bound=true;inp.addEventListener('keydown',function(e){if(e.key==='Enter'){lookupISBN(this.value);}});}
 }
 
 /* ═══ CAMERA FUNCTIONS ═══ */
-let _camStream=null,_camDetector=null,_camRafId=null;
+let _zxingReader=null,_camStream=null;
+/* ═══ ISBN LOOKUP ═══ */
+async function lookupISBN(isbn){
+  isbn=(isbn||'').replace(/[^0-9X]/gi,'');
+  if(!isbn){showToast('Introduce un ISBN válido','warn');return;}
+  // 1. Check local catalog first
+  const local=S.books.find(b=>b.isbn===isbn);
+  if(local){Object.assign(S,{scanResult:local,isbnExternal:null,isbnLoading:false});render();return;}
+  // 2. Fetch from Open Library
+  Object.assign(S,{isbnLoading:true,scanResult:null,isbnExternal:null});render();
+  try{
+    const r=await fetch('https://openlibrary.org/api/books?bibkeys=ISBN:'+isbn+'&format=json&jscmd=data');
+    const d=await r.json();
+    const key='ISBN:'+isbn;
+    if(d[key]){
+      const b=d[key];
+      const authors=(b.authors||[]).map(a=>a.name).join(', ')||'Desconocido';
+      const coverOL=b.cover?b.cover.medium||b.cover.large||b.cover.small:null;
+      const coverUrl=coverOL||'https://covers.openlibrary.org/b/isbn/'+isbn+'-M.jpg';
+      const ext={isbn,ti:b.title||'Sin título',au:authors,yr:b.publish_date||'',pg:b.number_of_pages||'',publisher:(b.publishers||[]).map(p=>p.name).join(', '),coverUrl,source:'Open Library'};
+      Object.assign(S,{isbnExternal:ext,isbnLoading:false});render();return;
+    }
+  }catch(e){}
+  // 3. Fallback: Google Books
+  try{
+    const r=await fetch('https://www.googleapis.com/books/v1/volumes?q=isbn:'+isbn+'&langRestrict=es');
+    const d=await r.json();
+    if(d.items&&d.items[0]){
+      const info=d.items[0].volumeInfo;
+      const imgLinks=info.imageLinks||{};
+      const coverUrl=imgLinks.thumbnail||imgLinks.smallThumbnail||'https://covers.openlibrary.org/b/isbn/'+isbn+'-M.jpg';
+      // Google Books returns http, force https
+      const ext={isbn,ti:info.title||'Sin título',au:(info.authors||['Desconocido']).join(', '),yr:info.publishedDate||'',pg:info.pageCount||'',publisher:info.publisher||'',coverUrl:coverUrl.replace('http://','https://'),source:'Google Books'};
+      Object.assign(S,{isbnExternal:ext,isbnLoading:false});render();return;
+    }
+  }catch(e){}
+  Object.assign(S,{isbnLoading:false});
+  showToast('ISBN no encontrado en Open Library ni Google Books','warn');render();
+}
+
+/* ═══ SCANNER CAMERA (ZXing) ═══ */
 function stopCamera(){
+  if(_zxingReader){try{_zxingReader.reset();}catch(e){}_zxingReader=null;}
   if(_camStream){_camStream.getTracks().forEach(t=>t.stop());_camStream=null;}
-  if(_camRafId){cancelAnimationFrame(_camRafId);_camRafId=null;}
-  const v=document.getElementById('scan-video');
-  if(v){v.srcObject=null;}
+  const v=document.getElementById('scan-video');if(v){v.srcObject=null;}
 }
 function toggleScanner(){
-  if(S.scanActive){stopCamera();Object.assign(S,{scanActive:false,scanResult:null});render();}
-  else{startCamera({facingMode:'user'});}
+  if(S.scanActive){stopCamera();Object.assign(S,{scanActive:false});render();}
+  else{startCamera('user');}
 }
-function startMobileCamera(){startCamera({facingMode:{ideal:'environment'}});}
-async function startCamera(constraints){
+function startMobileCamera(){startCamera('environment');}
+async function startCamera(facingMode){
   stopCamera();
+  if(typeof ZXing==='undefined'){showToast('Librería de escaneo cargando, espera un momento…','info');return;}
   try{
-    _camStream=await navigator.mediaDevices.getUserMedia({video:constraints,audio:false});
-    Object.assign(S,{scanActive:true,scanResult:null});render();
-    await new Promise(r=>setTimeout(r,100));
+    _camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:facingMode}},audio:false});
+    Object.assign(S,{scanActive:true,scanResult:null,isbnExternal:null});render();
+    await new Promise(r=>setTimeout(r,120));
     const v=document.getElementById('scan-video');
-    if(v){v.srcObject=_camStream;await v.play();}
-    if('BarcodeDetector' in window){
-      _camDetector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','qr_code']});
-      async function detect(){
-        if(!_camStream||!v)return;
-        try{
-          const codes=await _camDetector.detect(v);
-          if(codes.length>0){
-            const code=codes[0].rawValue;
-            const book=S.books.find(b=>b.isbn===code)||S.books.find(b=>b.id===code);
-            if(book){stopCamera();Object.assign(S,{scanActive:false,scanResult:book});showToast('✓ ISBN detectado: '+code);render();return;}
-          }
-        }catch(e){}
-        _camRafId=requestAnimationFrame(detect);
+    if(!v){stopCamera();return;}
+    v.srcObject=_camStream;await v.play();
+    _zxingReader=new ZXing.BrowserMultiFormatReader();
+    _zxingReader.decodeFromVideoElement(v,async(result,err)=>{
+      if(result){
+        const code=result.getText();
+        stopCamera();
+        Object.assign(S,{scanActive:false});
+        showToast('📷 Código detectado: '+code);
+        await lookupISBN(code);
       }
-      _camRafId=requestAnimationFrame(detect);
-    }else{showToast('Cámara activa — BarcodeDetector no disponible, usa ISBN manual.','info');}
-  }catch(e){showToast('No se pudo acceder a la cámara: '+e.message,'warn');Object.assign(S,{scanActive:false});render();}
+    });
+  }catch(e){
+    stopCamera();
+    Object.assign(S,{scanActive:false});
+    showToast('No se pudo acceder a la cámara: '+(e.message||e),'warn');render();
+  }
 }
 
 function saveThenRender(){saveCDU();render();}
